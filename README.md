@@ -671,7 +671,7 @@ docker-compose up -d
 
 http://192.168.99.100:8000/
 
-![Laravel 8.6 の Welcome ページ](./00.screen_capture/laravel8..welcom.png)
+![Laravel 8.6 の Welcome ページ](./00.screen_capture/laravel8.6.welcom.png)
 
 #### Laravel アプリケーションの .env ファイルの設定
 
