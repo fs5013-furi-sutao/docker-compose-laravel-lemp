@@ -104,7 +104,7 @@ volumes は、ホスト・コンテナ間でのファイル共有の指定で、
 
 volumesを設定することでファイルやディレクトリは、永続化（コンテナを削除してもホスト側にファイルやディレクトリが残る）させることができる。
 
-##### .env 
+##### .env ファイルの作成
 .env には、docker-compose で利用する環境変数を設定する。docker-compose ファイルと同階層のディレクトリに .env ファイルを置くと、docker-compose コマンド実行時に、そのファイルに記載された環境変数を読み込ませることができる。
 
 .env:
@@ -117,7 +117,7 @@ COMPOSE_CONVERT_WINDOWS_PATHS=1
 
 `COMPOSE_CONVERT_WINDOWS_PATHS=1` については、この記述で Unix 形式のファイルパスを、実行時に Windows パスへの変換を自動で行うように設定している。
 
-##### nginx.conf 
+##### nginx.conf ファイルの作成
 nginx.conf には、Nginx の設定内容を記述する。
 
 nginx.conf:
@@ -144,7 +144,7 @@ Web サーバがリクエストを受け付ける IP アドレスやポート番
 ###### access_log, error_log
 それぞれ、アクセスログの出力先パス・エラーログの出力先パスを指定している。
 
-#### 動作確認
+#### Nginx の動作確認をする
 Nginx の Docker コンテナの定義、Nginx の設定が済み、静的コンテンツを配信する Web サーバーを立ち上げる準備が整った。Nginx が動作していることを確認するための静的コンテンツとして、index.html を用意する。
 
 index.html
