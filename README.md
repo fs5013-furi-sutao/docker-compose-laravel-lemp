@@ -217,7 +217,7 @@ https://github.com/fs5013-furi-sutao/explain.how_nginx_and_php_fpm_work
 「ステップ 1 : Nginx サーバーを立ち上げる」で作成した docker-compose.yml を以下の通りに編集する。
 
 docker-compose.yml:
-```
+```yaml
 version: '3.8'
 services:
   web:
@@ -358,7 +358,7 @@ docker-compose.yml を下記の通り編集し、MySQLのコンテナを定義�
 
 #### docker-compose.yml への追記
 ./docker-compose.yml:
-```
+```yaml
 version: '3.8'
 services:
   web:
@@ -535,8 +535,7 @@ show databases;
 ```
 
 実行結果例:
-```console
-mysql> show databases;
+```
 +--------------------+
 | Database           |
 +--------------------+
@@ -544,6 +543,13 @@ mysql> show databases;
 | laraveldb          |
 +--------------------+
 2 rows in set (0.00 sec)
+```
+
+MySQL コンソールを終了するには、quit コマンドを実行する。
+
+MySQL コンソールを終了:
+```console
+quit
 ```
 
 想定通り、docker-compose.yml の environment で設定した DB 名である laraveldb が作成されていることが確認できる。これで、MySQL の起動・データベースの作成ができたことが確認できた。
