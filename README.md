@@ -20,7 +20,10 @@ https://github.com/fs5013-furi-sutao/explain.how_to_install.docker_toolbox
 2. Nginx 上で PHP を動作させる
 3. MySQL を用意する
 4. Laravel をインストールする
-5. プロジェクトから DB への接続を確認する
+
+このリポジトリをクローンした場合は、すぐに docker-compose コマンドでコンテナを起動できるので、上記ステップ 4 から Laravel のインストール作業を行う。
+
+ステップ 1 ～ 3 は、そこまでのコンテナを揃える作業となる。
 
 ### ステップ 1 : Nginx サーバーを立ち上げる
 このチュートリアルのゴールは、PHP の実行環境を構築し、Laravel をインストールすることなので、PHP を動作させる Web サーバーを Nginx で用意する必要がある。
@@ -558,3 +561,154 @@ quit
 
 php ブランチ：  
 https://github.com/fs5013-furi-sutao/docker-compose-laravel-lemp/tree/mysql
+
+### ステップ 4 : Laravel をインストールする
+このリポジトリをクローンすると次のようなベースライン構成となる。
+
+リポジトリのベースライン構成:
+```
+.
+├── docker/
+│    ├── php/
+│    ├── db/
+│    └── web/
+│         └── nginx.conf
+├── docker-compose.yml
+├── .env
+└── index.html
+└── index.php
+```
+
+#### 不要ファイルの削除
+まず、index.html と index.php の 2 つのファイルは Laravel の開発には不要なので削除しておく。つまり、以下のようなディレクトリ、ファイル構成となる。
+
+```
+.
+├── docker/
+│    ├── php/
+│    ├── db/
+│    └── web/
+│         └── nginx.conf
+├── docker-compose.yml
+└── .env
+```
+
+#### Laravel アプリケーションの作成
+次に Composer を利用して php コンテナ内に Laravel アプリケーションを作成する。
+
+Docker CLI で次のコマンドを実行して、php コンテナにログインする。
+
+```console
+docker-compose exec backend bash
+```
+
+続いて、次のコマンドで Laravel アプリケーションを作成する。
+
+```console
+composer create-project laravel/laravel backend-laravel --prefer-dist
+```
+
+これで backend-laravel ディレクトリ内に Laravel アプリケーションができた。
+
+```
+.
+├── docker/
+│    ├── php/
+│    ├── db/
+│    └── web/
+│         └── nginx.conf
+├── backend-laravel/
+├── docker-compose.yml
+└── .env
+```
+
+##### volumes パスの修正
+次に、作成された新しいパスに合うように docker-compose.yml ファイルを調整する必要がある。
+
+docker-compose.yml を開き、次のコードブロックのように、backend ボリュームタグを新しいパスで調整する。
+
+docker-compose.yml（backend サービス部分）:
+```yaml
+  backend:
+    build: ./docker/php
+    working_dir: /application
+    volumes:
+       - ./backend-laravel:/application
+      # - .:/application
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+```
+
+##### Nginx 設定の修正
+そして、Nginx の root 設定を /application ディレクトリから /application/public ディレクトリに変更する。
+
+nginx.conf
+```
+server {
+  // ・・・
+  root /application/public;
+  // ・・・
+  }
+  // ・・・
+}
+```
+
+##### コンテナの再起動
+引き続きターミナルで、「exit」と入力して backend bash からログアウトする。
+
+続いて、次のコマンドでコンテナを停止する。
+
+```console 
+docker-compose kill
+```
+
+さらに次のコマンドでコンテナを再起動する
+
+```console
+docker-compose up -d
+```
+
+コンテナが起動したらブラウザを開き、Laravel のウェルカムページが表示されることを確認する。
+
+http://192.168.99.100:8000/
+
+![Laravel 8.6 の Welcome ページ](./00.screen_capture/laravel8.5.welcom.png)
+
+#### Laravel アプリケーションの .env ファイルの設定
+
+プロジェクトフォルダーのルートにある .env ファイルを開き、次のようにデータベース構成を DB コンテナの設定値に書き換える。
+
+/backend-laravel/.env:
+```
+DB_CONNECTION=mysql 
+DB_HOST=db 
+DB_PORT=3306 
+DB_DATABASE=laraveldb 
+DB_USERNAME=fsecu 
+DB_PASSWORD=secret
+```
+
+#### アプリから DB への接続確認
+接続を確認してみる。Docker CLI で次のコマンドを実行して、php コンテナにログインする。
+
+```console
+docker-compose exec backend bash
+```
+
+backend bash 内で次のコマンドを実行する。
+
+```console
+php artisan tinker
+```
+
+tinker は Laravel を対話的に動かすことができるコマンドであり、次のコードをコマンドで実行することで DB に接続することができる。
+
+```console
+DB::connection() -> getDatabaseName();
+```
+
+実行結果例:
+```
+=> "laraveldb"
+```
+
+DB に接続し、データベース名を取得することができた。これで Laravel で開発を進める準備ができた。
