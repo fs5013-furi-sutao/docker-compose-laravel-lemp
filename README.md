@@ -204,7 +204,7 @@ https://github.com/fs5013-furi-sutao/explain.how_nginx_and_php_fpm_work
 │    │    ├── Dockerfile
 │    │    └── php.ini
 │    └── web/
-│         └── default.conf
+│         └── nginx.conf
 ├── docker-compose.yml
 ├── .env
 └── index.html
@@ -344,11 +344,211 @@ phpinfo() は PHP のバージョンなどの設定内容を出力する関数�
 
 この状態で、先程と同様に docker-compose up -d コマンドを実行すれば、以下のような画面が表示される。まだ docker-compose up -d をしてそのままの状態であれば、一度 docker-compose down し、コンテナを停止・削除してから行う。
 
-!()[./00.screen_capture/phpinfo_in_indexphp.png]
+!(index.php をブラウザで表示)[./00.screen_capture/phpinfo_in_indexphp.png]
 
 これで、Nginx で PHP を動作させ、それを確認することができた。
 
-ここまでのコードは以下のブランチにコミットしている。
+ここまでのコードは php ブランチにコミットしている。
 
 php ブランチ：  
 https://github.com/fs5013-furi-sutao/docker-compose-laravel-lemp/tree/php
+
+### ステップ 3 ： MySQL コンテナを用意する
+docker-compose.yml を下記の通り編集し、MySQLのコンテナを定義する。
+
+#### docker-compose.yml への追記
+./docker-compose.yml:
+```
+version: '3.8'
+services:
+  web:
+    image: nginx:alpine
+    working_dir: /application
+    depends_on:
+     - backend
+    volumes:
+     - .:/application
+     - ./docker/web/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+     - ${WEB_PORT}:80
+
+  backend:
+    build: ./docker/php
+    working_dir: /application
+    volumes:
+      # - ./backend-laravel:/application
+      - .:/application
+      - ./docker/php/php.ini:/usr/local/etc/php/php.ini
+  db:
+    image: mysql:8.0
+    working_dir: /application
+    volumes:
+      - .:/application
+      - mysql-db-store:/var/lib/mysql
+      - ./docker/db/logs:/var/log/mysql
+      - ./docker/db/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./docker/db/initdb:/docker-entrypoint-initdb.d
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASS}
+      - TZ=${TZ}
+    ports:
+      - ${DB_PORT}:3306
+    command: --innodb-use-native-aio=0
+
+volumes:
+  mysql-db-store:
+```
+###### environment
+environment では、MySQL コンテナでの環境変数を設定している。MYSQL_DATABASE はイメージの起動時に作成するデータベースの名前、MYSQL_USER, MYSQL_PASSWORD は新規ユーザーの作成とそのユーザーのパスワードの設定、MYSQL_ROOT_PASSWORDはMySQL におけるルートユーザーである root アカウントのパスワードの設定です。
+
+まず始めに root password が設定されるため、MYSQL_ROOT_PASSWORD を一番始めに記述しておく必要がある。
+
+設定した環境変数の値を定義するために .env ファイルには以下の内容を追記しておく
+
+.env:
+```
+WEB_PORT=8000
+
+DB_ROOT_PASS=rootsecret
+DB_NAME=laraveldb
+DB_USER=fsedu
+DB_PASS=secret
+DB_PORT=13306
+TZ=Asia/Tokyo
+
+# Windows のパスを Linux 向けのパスに変換する
+COMPOSE_CONVERT_WINDOWS_PATHS=1
+```
+
+###### volumes
+トップレベルにある volumes は、mysql-db-store を サービス内で共通化して、他のコンテナからも参照できるようにするための設定である。
+
+###### command
+`docker-compose up` コマンドの実行時に実行したいコマンドを記述する。
+
+ここで command オプションに記述した `--innodb-use-native-aio=0` は、aio（Linux カーネルの非同期 I/O ファイルシステム）の利用を指定するコマンドである。
+
+共有フォルダでは aio がサポートされていないため、上記の指定をしないとログなどのファイル書き込み時に次のようなエラーが発生する。
+
+発生の可能性があるエラーのメッセージ: 
+```
+File ./undo_001: 'aio write' returned OS error 122. Cannot continue operation.
+```
+
+#### 必要なフォルダとファイルの作成
+```
+.
+├── docker/
+│    ├── php/
+│    │    ├── Dockerfile
+│    │    └── php.ini
+│    ├── db/
+│    │    ├── initdb/
+│    │    │    └── .gitkeep
+│    │    ├── logs/
+│    │    │    └── .gitkeep
+│    │    └── my.cnf/
+│    │         └── my.cnf
+│    └── web/
+│         └── nginx.conf
+├── docker-compose.yml
+├── .env
+└── index.html
+└── index.php
+```
+###### .gitkeep ファイル
+.gitkeep ファイルは空フォルダをコミットさせるためのファイル。
+
+空ファイルは、中にファイルが 1 つもないとコミットできない。つまり、ワーキングツリーにフォルダがあっても、リポジトリにはフォルダが存在しないことになってしまう。それを防ぐために、中に .gitkeep というファイル内に何も記述しないファイルを置いて置く。
+
+空フォルダに奥ファイル名は .gitkeep にする必須ルールはないが、慣習的に .gitkeep という名前が広く使われている。ファイル名を .gitkeep にしておくことで、そうした慣習を知っている開発者に、空フォルダを残しておきたいという意図が伝わる。 
+
+###### initdb フォルダ
+DB コンテナの /docker-entrypoint-initdb.d にマウントする。ローカルのこのフォルダに sql ファイルを配置しておくことで、コンテナ起動時に sql ファイルに記述した sql が実行される。
+
+###### my.cnf ファイル
+MySQL の設定ファイル。内容は以下の要に記述する。
+
+my.cnf: 
+```
+# MySQLサーバーへの設定
+[mysqld]
+# 文字コード/照合順序の設定
+character-set-server = utf8mb4
+collation-server = utf8mb4_0900_as_cs
+
+# タイムゾーンの設定
+default-time-zone = SYSTEM
+log_timestamps = SYSTEM
+
+# デフォルト認証プラグインの設定
+default-authentication-plugin = mysql_native_password
+
+# エラーログの設定
+log-error = /var/log/mysql/mysql-error.log
+
+# スロークエリログの設定
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/mysql-slow.log
+long_query_time = 5.0
+log_queries_not_using_indexes = 0
+
+# 実行ログの設定
+general_log = 1
+general_log_file = /var/log/mysql/mysql-query.log
+
+# mysqlオプションの設定
+[mysql]
+# 文字コードの設定
+default-character-set = utf8mb4
+
+# mysqlクライアントツールの設定
+[client]
+# 文字コードの設定
+default-character-set = utf8mb4
+```
+
+#### MySQL コンテナの動作確認
+docker-compose up -d したあと、下記のコマンドを実行することで、MySQL コンテナに入ることができる。
+
+DB コンテナにログインするコマンド: 
+```console
+docker-compose exec db bash
+```
+
+コンテナに入ると、コマンドプロンプトが root@xxxxxxxxxxxx:/# のような状態に変化する。この状態で以下のコマンドを実行することで、MySQL に接続することができる。
+
+MySQL にログインするコマンド: 
+```console
+mysql -h localhost -u fsedu -p
+```
+
+パスワードを求められるので、docker-compose.yml で環境変数に設定したパスワードを入力する。
+
+MySQL が起動すると、コマンドプロンプトが mysql> に変化する。この状態で、以下のコマンドを実行することで、データベースの一覧を確認することができる。
+
+```console
+show databases;
+```
+
+実行結果例:
+```console
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| laraveldb          |
++--------------------+
+2 rows in set (0.00 sec)
+```
+
+想定通り、docker-compose.yml の environment で設定した DB 名である laraveldb が作成されていることが確認できる。これで、MySQL の起動・データベースの作成ができたことが確認できた。
+
+ここまでのコードは mysql ブランチにコミットしている。
+
+php ブランチ：  
+https://github.com/fs5013-furi-sutao/docker-compose-laravel-lemp/tree/mysql
