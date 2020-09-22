@@ -183,4 +183,4 @@ http://192.168.99.100:8000/
 ここまでのコードは以下のブランチにコミットしている。
 
 nginx ブランチ:  
-
+https://github.com/fs5013-furi-sutao/docker-compose-laravel-lemp/tree/nginx
