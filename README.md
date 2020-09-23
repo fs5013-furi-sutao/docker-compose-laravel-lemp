@@ -683,7 +683,7 @@ DB_CONNECTION=mysql
 DB_HOST=db 
 DB_PORT=3306 
 DB_DATABASE=laraveldb 
-DB_USERNAME=fsecu 
+DB_USERNAME=fseu 
 DB_PASSWORD=secret
 ```
 
