@@ -608,6 +608,11 @@ docker-compose exec backend bash
 composer create-project laravel/laravel backend-laravel --prefer-dist
 ```
 
+Laravel のバージョン指定もできる。
+```console
+composer create-project laravel/laravel backend-laravel --prefer-dist '6.*'
+```
+
 これで backend-laravel ディレクトリ内に Laravel アプリケーションができた。
 
 ```
